@@ -36,7 +36,7 @@ Example:
 
 ```bash
 uvx role-forge render --project-dir . --yes
-uv run --directory ../marrow-core marrow-core validate --config ./.runtime-config.toml
+uv run --directory ../marrow-core marrow-core validate --config ./marrow.toml
 # lifecycle bridge lives in marrow-task:
 python -m marrow_task claim-next --workspace /Users/marrow
 ```
@@ -47,14 +47,14 @@ If `marrow-core` is checked out next to this repo, the fastest path is:
 
 ```bash
 ./setup.sh
-uv run --directory ../marrow-core marrow-core dry-run --config ./.runtime-config.toml
+uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
 ```
 
 `setup.sh` will:
 
 - render `.opencode/agents/` from `roles/`
-- generate a runnable `.runtime-config.toml`
-- copy `context.d/` into the target workspace
+- use the checked-in `marrow.toml`
+- use `sudo` only for operations that need elevated write access under `/opt`
 - run `validate`, `doctor`, and `dry-run`
 - render service files into `./service-out`
 
@@ -65,18 +65,13 @@ uv run --directory ../marrow-core marrow-core dry-run --config ./.runtime-config
    - `uv` / `uvx`
    - `opencode`
    - a local `marrow-core` checkout (default: sibling `../marrow-core`)
+   - `sudo` access for operations that write protected paths under `/opt`
 
-2. **Clone `marrow-bot` alongside `marrow-core`**
-
-   ```bash
-   git clone https://github.com/zrr1999/marrow-bot.git
-   cd marrow-bot
-   ```
-
-   Or, if both repos already live under the same parent:
+2. **Clone `marrow-bot` to `/opt/marrow-bot`**
 
    ```bash
-   cd /path/to/marrow-bot
+   sudo git clone https://github.com/zrr1999/marrow-bot.git /opt/marrow-bot
+   cd /opt/marrow-bot
    ```
 
 3. **Run the setup helper**
@@ -85,40 +80,47 @@ uv run --directory ../marrow-core marrow-core dry-run --config ./.runtime-config
    ./setup.sh
    ```
 
-   Common overrides:
-
-   ```bash
-   CORE_DIR=/path/to/marrow-core WORKSPACE=/path/to/workspace ./setup.sh
-   ```
-
 4. **Inspect the generated artifacts**
 
-   - generated config: `./.runtime-config.toml`
+   - config in use: `./marrow.toml`
    - rendered roles: `./.opencode/agents/`
    - rendered services: `./service-out/`
-   - copied runtime context: `<workspace>/context.d/`
 
 5. **Run via local `marrow-core`**
 
    Dry-run prompt assembly:
 
    ```bash
-   uv run --directory ../marrow-core marrow-core dry-run --config ./.runtime-config.toml
+   uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
    ```
 
    Persistent runtime loop:
 
    ```bash
-   uv run --directory ../marrow-core marrow-core run --config ./.runtime-config.toml
+   uv run --directory ../marrow-core marrow-core run --config ./marrow.toml
    ```
 
 After setup, the service or CLI that runs `marrow-core` will use the `orchestrator` agent from this profile as the top-level scheduled main.
+
+## Path design
+
+- `marrow.toml` keeps only stable, reusable values.
+- `profile.root_dir` is pinned to `/opt/marrow-bot` because the profile repo owns that path.
+- user-home-specific values are derived by `marrow-core` from `user = "marrow"`.
+- `agent_command` uses `opencode run --agent orchestrator` instead of a machine-local absolute path, so installation depends on PATH rather than one developer workstation.
+
+## IPC and permissions
+
+- `setup.sh` may call `sudo` for protected writes, but does not need to be launched as root.
+- the runtime itself is still configured for `user = "marrow"`.
+- `marrow-core` should derive the workspace from that user, place the IPC socket under the user-owned runtime tree, and keep `task add` / `task list` usable without root.
 
 ## Notes on lifecycle and sync
 
 - `marrow-bot` is read-only and prompt-first.
 - lifecycle write-back belongs outside this repo.
 - default `sync` is disabled in the template because `sync-once` is maintenance-only and source-checkout-centric.
+- setup may elevate selected install steps, but normal runtime and IPC usage should stay available to the configured bot user for `task add` / `task list`.
 
 ## Current shape
 

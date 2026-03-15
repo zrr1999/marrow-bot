@@ -1,25 +1,54 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BOT_DIR="${BOT_DIR:-${SCRIPT_DIR}}"
+BOT_DIR="${BOT_DIR:-/opt/marrow-bot}"
+CONFIG_PATH="${CONFIG_PATH:-${BOT_DIR}/marrow.toml}"
+SERVICE_OUT_DIR="${SERVICE_OUT_DIR:-${BOT_DIR}/service-out}"
+BOT_USER="${BOT_USER:-marrow}"
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  BOT_HOME="${BOT_HOME:-/Users/${BOT_USER}}"
+else
+  BOT_HOME="${BOT_HOME:-/home/${BOT_USER}}"
+fi
+
 DEFAULT_CORE_DIR="$(cd "${BOT_DIR}/.." && pwd)/marrow-core"
 if [[ -d "${DEFAULT_CORE_DIR}" ]]; then
   CORE_DIR="${CORE_DIR:-${DEFAULT_CORE_DIR}}"
 else
   CORE_DIR="${CORE_DIR:-/opt/marrow-core}"
 fi
-WORKSPACE="${WORKSPACE:-${HOME:-/Users/marrow}}"
-CONFIG_PATH="${CONFIG_PATH:-${BOT_DIR}/.runtime-config.toml}"
-SERVICE_OUT_DIR="${SERVICE_OUT_DIR:-${BOT_DIR}/service-out}"
-SERVICE_MODE="${SERVICE_MODE:-single_user}"
-AGENT_USER="${AGENT_USER:-$(id -un)}"
 
 echo "[marrow-bot] Using CORE_DIR=${CORE_DIR}"
 echo "[marrow-bot] Using BOT_DIR=${BOT_DIR}"
-echo "[marrow-bot] Using WORKSPACE=${WORKSPACE}"
 echo "[marrow-bot] Using CONFIG_PATH=${CONFIG_PATH}"
 echo "[marrow-bot] Using SERVICE_OUT_DIR=${SERVICE_OUT_DIR}"
+echo "[marrow-bot] Using BOT_USER=${BOT_USER}"
+echo "[marrow-bot] Using BOT_HOME=${BOT_HOME}"
+
+run_with_optional_sudo() {
+  local target="$1"
+  shift
+  local parent
+  if [[ -e "${target}" ]]; then
+    parent="${target}"
+  else
+    parent="$(dirname "${target}")"
+  fi
+  if [[ -w "${parent}" ]]; then
+    "$@"
+    return
+  fi
+  sudo env "PATH=${PATH}" "$@"
+}
+
+run_as_bot_user() {
+  if [[ "$(id -un)" == "${BOT_USER}" ]]; then
+    env HOME="${BOT_HOME}" PATH="${BOT_PATH}" "$@"
+    return
+  fi
+  sudo -u "${BOT_USER}" env HOME="${BOT_HOME}" PATH="${BOT_PATH}" "$@"
+}
 
 if [[ ! -d "${CORE_DIR}" ]]; then
   echo "[marrow-bot] ERROR: CORE_DIR does not exist: ${CORE_DIR}" >&2
@@ -28,6 +57,17 @@ fi
 
 if [[ ! -d "${BOT_DIR}" ]]; then
   echo "[marrow-bot] ERROR: BOT_DIR does not exist: ${BOT_DIR}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${CONFIG_PATH}" ]]; then
+  echo "[marrow-bot] ERROR: config does not exist: ${CONFIG_PATH}" >&2
+  exit 1
+fi
+BOT_PATH="${BOT_HOME}/.bun/bin:${BOT_HOME}/.local/bin:${BOT_HOME}/bin:${PATH}"
+
+if ! id "${BOT_USER}" >/dev/null 2>&1; then
+  echo "[marrow-bot] ERROR: configured bot user does not exist: ${BOT_USER}" >&2
   exit 1
 fi
 
@@ -58,75 +98,36 @@ if ! command -v opencode >/dev/null 2>&1; then
   exit 1
 fi
 
-OPENCODE_BIN="${OPENCODE_BIN:-$(command -v opencode)}"
+if ! run_as_bot_user command -v opencode >/dev/null 2>&1; then
+  echo "[marrow-bot] ERROR: opencode is not available on PATH for ${BOT_USER}." >&2
+  exit 1
+fi
+
+marrow_core() {
+  uvx marrow-core "$@"
+}
 
 echo "[marrow-bot] Rendering roles via role-forge..."
-uvx role-forge render --project-dir "${BOT_DIR}" --yes
+run_with_optional_sudo "${BOT_DIR}" uvx role-forge render --project-dir "${BOT_DIR}" --yes
 
-echo "[marrow-bot] Generating runtime config at ${CONFIG_PATH}..."
-BOT_DIR="${BOT_DIR}" WORKSPACE="${WORKSPACE}" CONFIG_PATH="${CONFIG_PATH}" SERVICE_MODE="${SERVICE_MODE}" AGENT_USER="${AGENT_USER}" OPENCODE_BIN="${OPENCODE_BIN}" python3 - <<'PY'
-from __future__ import annotations
+echo "[marrow-bot] Linking rendered agents into ${BOT_HOME}/.opencode ..."
+run_with_optional_sudo "${BOT_HOME}/.opencode" mkdir -p "${BOT_HOME}"
+run_with_optional_sudo "${BOT_HOME}/.opencode" ln -sfn "${BOT_DIR}/.opencode" "${BOT_HOME}/.opencode"
 
-import json
-import os
-from pathlib import Path
-
-bot_dir = Path(os.environ["BOT_DIR"]).resolve()
-workspace = Path(os.environ["WORKSPACE"]).resolve()
-config_path = Path(os.environ["CONFIG_PATH"]).resolve()
-service_mode = os.environ["SERVICE_MODE"].strip() or "single_user"
-agent_user = os.environ["AGENT_USER"].strip() or "marrow"
-opencode_bin = Path(os.environ["OPENCODE_BIN"]).resolve()
-
-workspace_context_dir = workspace / "context.d"
-text = "\n".join(
-    [
-        "[profile]",
-        f"root_dir = {json.dumps(str(bot_dir))}",
-        f"source_context_dir = {json.dumps(str(bot_dir / 'context.d'))}",
-        "",
-        "[service]",
-        f"mode = {json.dumps(service_mode)}",
-        "",
-        "[ipc]",
-        "enabled = true",
-        "",
-        "[self_check]",
-        "enabled = true",
-        "interval_seconds = 900",
-        "wake_agent = \"orchestrator\"",
-        "",
-        "[sync]",
-        "enabled = false",
-        "",
-        "[[agents]]",
-        f"user = {json.dumps(agent_user)}",
-        "name = \"orchestrator\"",
-        "heartbeat_interval = 10800",
-        "heartbeat_timeout = 7200",
-        f"workspace = {json.dumps(str(workspace))}",
-        f"agent_command = {json.dumps(str(opencode_bin) + ' run --agent orchestrator')}",
-        f"context_dirs = [{json.dumps(str(workspace_context_dir))}]",
-        "",
-    ]
-)
-config_path.write_text(text, encoding="utf-8")
-PY
-
-echo "[marrow-bot] Ensuring workspace structure via marrow-core setup..."
-uv run --directory "${CORE_DIR}" marrow-core setup --config "${CONFIG_PATH}"
-
-echo "[marrow-bot] Installing context providers into ${WORKSPACE}/context.d ..."
-mkdir -p "${WORKSPACE}/context.d"
+echo "[marrow-bot] Installing context providers into ${BOT_HOME}/context.d ..."
+run_with_optional_sudo "${BOT_HOME}/context.d" mkdir -p "${BOT_HOME}/context.d"
 for script in "${BOT_DIR}"/context.d/*.py; do
-  install -m 0755 "${script}" "${WORKSPACE}/context.d/$(basename "${script}")"
+  run_with_optional_sudo "${BOT_HOME}/context.d/$(basename "${script}")" install -m 0755 "${script}" "${BOT_HOME}/context.d/$(basename "${script}")"
 done
 
+echo "[marrow-bot] Ensuring workspace structure via marrow-core setup..."
+run_as_bot_user marrow_core setup --config "${CONFIG_PATH}"
+
 echo "[marrow-bot] Validating profile via local marrow-core checkout..."
-uv run --directory "${CORE_DIR}" marrow-core validate --config "${CONFIG_PATH}"
-uv run --directory "${CORE_DIR}" marrow-core doctor --config "${CONFIG_PATH}"
-uv run --directory "${CORE_DIR}" marrow-core dry-run --config "${CONFIG_PATH}" >/dev/null
-uv run --directory "${CORE_DIR}" marrow-core install-service --config "${CONFIG_PATH}" --platform auto --output-dir "${SERVICE_OUT_DIR}"
+run_as_bot_user marrow_core validate --config "${CONFIG_PATH}"
+run_as_bot_user marrow_core doctor --config "${CONFIG_PATH}"
+run_as_bot_user marrow_core dry-run --config "${CONFIG_PATH}" >/dev/null
+run_with_optional_sudo "$(dirname "${SERVICE_OUT_DIR}")" env HOME="${BOT_HOME}" PATH="${BOT_PATH}" sh -lc 'uvx marrow-core install-service --config "$1" --platform auto --output-dir "$2"' -- "${CONFIG_PATH}" "${SERVICE_OUT_DIR}"
 
 echo "[marrow-bot] Setup complete."
 echo "[marrow-bot] Config: ${CONFIG_PATH}"

@@ -48,6 +48,5 @@ Preferred local setup path:
 
 1. run `./setup.sh`
 2. let it render `.opencode/agents/`
-3. let it copy `context.d/` into the target workspace
-4. use the generated config at `.runtime-config.toml`
-5. run `uv run --directory ../marrow-core marrow-core dry-run --config ./.runtime-config.toml`
+3. use the checked-in config at `/opt/marrow-bot/marrow.toml`
+4. run `uv run --directory ../marrow-core marrow-core dry-run --config /opt/marrow-bot/marrow.toml`
