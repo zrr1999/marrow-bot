@@ -5,7 +5,7 @@ description: >-
   research intake, durable internal materials, and prompt-system improvement.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

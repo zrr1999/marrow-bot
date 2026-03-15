@@ -5,7 +5,7 @@ description: >-
   reports concrete regression evidence.
 role: subagent
 model:
-  tier: low
+  tier: coding
 capabilities:
   - basic
 ---

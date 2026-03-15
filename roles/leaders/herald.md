@@ -5,7 +5,7 @@ description: >-
   public-facing summaries, and visibility-oriented communication artifacts.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

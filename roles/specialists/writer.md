@@ -5,7 +5,7 @@ description: >-
   explanatory text for a bounded output target.
 role: subagent
 model:
-  tier: low
+  tier: coding
 capabilities:
   - basic
 ---

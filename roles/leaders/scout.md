@@ -5,7 +5,7 @@ description: >-
   opportunity scans, prior-art gathering, and bounded exploratory passes.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

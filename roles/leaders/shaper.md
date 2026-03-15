@@ -5,7 +5,7 @@ description: >-
   cleanups, and design-level changes that alter how code is organized.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

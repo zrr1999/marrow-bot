@@ -6,7 +6,7 @@ description: >-
   shaper, and verifier.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

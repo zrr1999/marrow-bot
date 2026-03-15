@@ -5,7 +5,7 @@ description: >-
   self-evolution changes to the agent system itself.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

@@ -5,7 +5,7 @@ description: >-
   a specific bounded question.
 role: subagent
 model:
-  tier: low
+  tier: coding
 capabilities:
   - basic
 ---
