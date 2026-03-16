@@ -60,30 +60,39 @@ uvx marrow-core dry-run --config ./marrow.toml
 
 1. **Prepare local prerequisites**
    You need:
+   - `git`
    - `uv` / `uvx` (marrow-core is run via `uvx marrow-core`)
    - `opencode`
    - `sudo` access for operations that write protected paths under `/opt`
 
-2. **Clone `marrow-bot` to `/opt/marrow-bot`**
+2. **Run the setup helper**
+
+   If `marrow-bot` is not yet cloned, `setup.sh` will auto-clone it to `/opt/marrow-bot`:
 
    ```bash
-   sudo git clone https://github.com/zrr1999/marrow-bot.git /opt/marrow-bot
-   cd /opt/marrow-bot
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/zrr1999/marrow-bot/main/setup.sh)"
    ```
 
-3. **Run the setup helper**
+   With sudo (e.g. when `/opt` requires elevation):
 
    ```bash
-   ./setup.sh
+   sudo /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/zrr1999/marrow-bot/main/setup.sh)"
    ```
 
-4. **Inspect the generated artifacts**
+   Or clone manually and run:
+
+   ```bash
+   git clone https://github.com/zrr1999/marrow-bot.git /opt/marrow-bot
+   cd /opt/marrow-bot && ./setup.sh
+   ```
+
+3. **Inspect the generated artifacts**
 
    - config in use: `./marrow.toml`
    - rendered roles: `./.opencode/agents/`
    - rendered services: `./service-out/`
 
-5. **Run marrow-core**
+4. **Run marrow-core**
 
    Dry-run prompt assembly:
 

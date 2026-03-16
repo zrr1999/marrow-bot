@@ -2,6 +2,7 @@
 set -euo pipefail
 
 BOT_DIR="${BOT_DIR:-/opt/marrow-bot}"
+BOT_REPO_URL="${BOT_REPO_URL:-https://github.com/zrr1999/marrow-bot.git}"
 CONFIG_PATH="${CONFIG_PATH:-${BOT_DIR}/marrow.toml}"
 SERVICE_OUT_DIR="${SERVICE_OUT_DIR:-${BOT_DIR}/service-out}"
 BOT_USER="${BOT_USER:-marrow}"
@@ -44,8 +45,12 @@ run_as_bot_user() {
 
 
 if [[ ! -d "${BOT_DIR}" ]]; then
-  echo "[marrow-bot] ERROR: BOT_DIR does not exist: ${BOT_DIR}" >&2
-  exit 1
+  if ! command -v git >/dev/null 2>&1; then
+    echo "[marrow-bot] ERROR: BOT_DIR does not exist and git is not installed (required to clone)." >&2
+    exit 1
+  fi
+  echo "[marrow-bot] Cloning marrow-bot into ${BOT_DIR}..."
+  run_with_optional_sudo "$(dirname "${BOT_DIR}")" git clone "${BOT_REPO_URL}" "${BOT_DIR}"
 fi
 
 if [[ ! -f "${CONFIG_PATH}" ]]; then
@@ -91,10 +96,6 @@ if ! run_as_bot_user command -v opencode >/dev/null 2>&1; then
   exit 1
 fi
 
-marrow_core() {
-  uvx marrow-core "$@"
-}
-
 echo "[marrow-bot] Rendering roles via role-forge..."
 run_with_optional_sudo "${BOT_DIR}" uvx role-forge render --project-dir "${BOT_DIR}" --yes
 
@@ -109,12 +110,12 @@ for script in "${BOT_DIR}"/context.d/*.py; do
 done
 
 echo "[marrow-bot] Ensuring workspace structure via marrow-core setup..."
-run_as_bot_user marrow_core setup --config "${CONFIG_PATH}"
+run_as_bot_user uvx marrow-core setup --config "${CONFIG_PATH}"
 
 echo "[marrow-bot] Validating profile via marrow-core..."
-run_as_bot_user marrow_core validate --config "${CONFIG_PATH}"
-run_as_bot_user marrow_core doctor --config "${CONFIG_PATH}"
-run_as_bot_user marrow_core dry-run --config "${CONFIG_PATH}" >/dev/null
+run_as_bot_user uvx marrow-core validate --config "${CONFIG_PATH}"
+run_as_bot_user uvx marrow-core doctor --config "${CONFIG_PATH}"
+run_as_bot_user uvx marrow-core dry-run --config "${CONFIG_PATH}" >/dev/null
 run_with_optional_sudo "$(dirname "${SERVICE_OUT_DIR}")" env HOME="${BOT_HOME}" PATH="${BOT_PATH}" sh -lc 'uvx marrow-core install-service --config "$1" --platform auto --output-dir "$2"' -- "${CONFIG_PATH}" "${SERVICE_OUT_DIR}"
 
 echo "[marrow-bot] Setup complete."
