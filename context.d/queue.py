@@ -10,15 +10,26 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-WORKSPACE = Path(os.environ.get("MARROW_WORKSPACE") or os.environ.get("HOME") or "/Users/marrow")
-QUEUE_DIR = WORKSPACE / "tasks" / "queue"
+
+def _workspace() -> Path:
+    explicit = os.environ.get("MARROW_WORKSPACE")
+    if explicit:
+        return Path(explicit)
+    script_dir = Path(__file__).resolve().parent
+    if script_dir.name == "context.d":
+        return script_dir.parent
+    home = os.environ.get("HOME")
+    if home:
+        return Path(home)
+    return Path("/Users/marrow")
 
 
 def main() -> None:
-    if not QUEUE_DIR.is_dir():
+    queue_dir = _workspace() / "tasks" / "queue"
+    if not queue_dir.is_dir():
         return
 
-    files = sorted(p for p in QUEUE_DIR.iterdir() if p.is_file())
+    files = sorted(p for p in queue_dir.iterdir() if p.is_file())
     if not files:
         return
 
@@ -31,4 +42,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

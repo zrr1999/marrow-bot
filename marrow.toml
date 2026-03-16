@@ -1,8 +1,9 @@
-core_dir = "/opt/marrow-core"
+[profile]
+root_dir = "/opt/marrow-bot"
 
 [service]
-mode = "supervisor"
-runtime_root = "/var/lib/marrow"
+mode = "single_user"
+config_path = "/opt/marrow-bot/marrow.toml"
 
 [ipc]
 enabled = true
@@ -13,18 +14,11 @@ interval_seconds = 900
 wake_agent = "orchestrator"
 
 [sync]
-enabled = true
-interval_seconds = 3600
-failure_backoff_seconds = 300
+enabled = false
 
 [[agents]]
 user = "marrow"
 name = "orchestrator"
 heartbeat_interval = 10800  # every 3 hours
 heartbeat_timeout = 7200
-workspace = "/Users/marrow"
-agent_command = "/Users/marrow/.opencode/bin/opencode run --agent orchestrator"
-context_dirs = [
-  "/Users/marrow/context.d",
-]
-
+agent_command = "opencode run --agent orchestrator"

@@ -5,7 +5,7 @@ description: >-
   coordination, public-facing updates, and heavy acceptance across courier and herald.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

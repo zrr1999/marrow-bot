@@ -5,7 +5,7 @@ description: >-
   acceptance rigor, and escalation of quality concerns through reviewer.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

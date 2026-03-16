@@ -5,7 +5,7 @@ description: >-
   coordination, and read/write operations against external systems.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

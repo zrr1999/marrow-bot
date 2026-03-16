@@ -5,7 +5,7 @@ description: >-
   integration, and delivery planning for well-scoped product changes.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

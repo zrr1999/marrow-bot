@@ -5,7 +5,7 @@ description: >-
   runtime validation, and evidence gathering for build-domain changes.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

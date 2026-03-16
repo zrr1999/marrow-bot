@@ -5,7 +5,7 @@ description: >-
   memory lifecycle decisions, and reusable internal materials.
 role: subagent
 model:
-  tier: medium
+  tier: default
 capabilities:
   - all
 ---

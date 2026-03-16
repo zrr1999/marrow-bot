@@ -8,72 +8,126 @@ layout that `marrow-core` can consume.
 This repository provides:
 
 - Canonical role prompts and delegation layout under `roles/`.
-- Stable global policy under `prompts/rules.md`.
-- Context providers for queue and workspace state under `context.d/`.
+- Stable policy directly in role definitions and AGENTS.
+- Minimal context providers under `context.d/`.
+- A minimal work-item context bridge for shared intake state under `context.d/work_items.py`.
 - A default `marrow.toml` configuration that wires these into `marrow-core`.
 - Casting metadata in `roles.toml` for `role-forge` / OpenCode.
 
 `marrow-core` stays profile-agnostic: it only provides the scheduler, CLI, IPC, services, and sync model. `marrow-bot` is one concrete bot that runs on top of that runtime.
 
+## Shared work-items seam
+
+`marrow-bot` now reads the shared `work-items/` contract via a context provider instead of redefining intake state inside the prompt tree.
+
+## Prompt-first profile
+
+`marrow-bot` is now prompt-first:
+
+- stable policy lives in role definitions and AGENTS
+- dynamic facts live in `context.d/`
+- lifecycle bridging is externalized to `marrow-task`
+
+`marrow-bot` itself stays read-only and prompt-first. Operational lifecycle bridging moved out so the profile repo does not become a tools or service repo.
+
+There is intentionally **no** bot-local `claim-next` / `complete` / `block` / `fail` bridge in this repo. Use `marrow-task` or another external bridge for write-back and lifecycle operations.
+
+Example:
+
+```bash
+uvx role-forge render --project-dir . --yes
+uv run --directory ../marrow-core marrow-core validate --config ./marrow.toml
+# lifecycle bridge lives in marrow-task:
+python -m marrow_task claim-next --workspace /Users/marrow
+```
+
+## Quick start
+
+If `marrow-core` is checked out next to this repo, the fastest path is:
+
+```bash
+./setup.sh
+uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
+```
+
+`setup.sh` will:
+
+- render `.opencode/agents/` from `roles/`
+- use the checked-in `marrow.toml`
+- use `sudo` only for operations that need elevated write access under `/opt`
+- run `validate`, `doctor`, and `dry-run`
+- render service files into `./service-out`
+
 ## Installation
 
-1. **Install `marrow-core` (runtime only)**  
-   Follow `marrow-core`’s README to:
-   - clone and install `/opt/marrow-core`
-   - run its `setup.sh` to create the venv and install the heartbeat service
+1. **Prepare local prerequisites**
+   You need:
+   - `uv` / `uvx`
+   - `opencode`
+   - a local `marrow-core` checkout (default: sibling `../marrow-core`)
+   - `sudo` access for operations that write protected paths under `/opt`
 
-2. **Clone `marrow-bot` alongside `marrow-core`**
+2. **Clone `marrow-bot` to `/opt/marrow-bot`**
 
    ```bash
    sudo git clone https://github.com/zrr1999/marrow-bot.git /opt/marrow-bot
    cd /opt/marrow-bot
    ```
 
-3. **Cast roles into `.opencode/agents/`**
-
-   Using `uvx` (recommended) or any other way to invoke the `role-forge` CLI:
+3. **Run the setup helper**
 
    ```bash
-   uvx role-forge cast --config roles.toml
+   ./setup.sh
    ```
 
-   This will project the canonical roles under `roles/` into the OpenCode runtime layout, typically under `/Users/marrow/.opencode/agents/`.
+4. **Inspect the generated artifacts**
 
-4. **Wire up the profile config**
+   - config in use: `./marrow.toml`
+   - rendered roles: `./.opencode/agents/`
+   - rendered services: `./service-out/`
 
-   Copy or link this profile’s `marrow.toml` to where you want `marrow-core` to read it from (for a default install, `/opt/marrow-core/marrow.toml`):
+5. **Run via local `marrow-core`**
+
+   Dry-run prompt assembly:
 
    ```bash
-   sudo cp marrow.toml /opt/marrow-core/marrow.toml
+   uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
    ```
 
-5. **Validate and install services via `marrow-core`**
-
-   Use the `marrow` CLI (installed by `marrow-core`) instead of calling Python directly:
+   Persistent runtime loop:
 
    ```bash
-   cd /opt/marrow-core
-   sudo uvx marrow validate --config marrow.toml
-   sudo uvx marrow install-service --config marrow.toml --platform auto --output-dir ./service-out
+   uv run --directory ../marrow-core marrow-core run --config ./marrow.toml
    ```
 
-After this, the systemd/launchd service that runs `marrow run` will use the `orchestrator` agent from this profile as the top-level scheduled main.
+After setup, the service or CLI that runs `marrow-core` will use the `orchestrator` agent from this profile as the top-level scheduled main.
 
-## Status
+## Path design
 
-This repository is being bootstrapped as part of the decoupling described in:
+- `marrow.toml` keeps only stable, reusable values.
+- `profile.root_dir` is pinned to `/opt/marrow-bot` because the profile repo owns that path.
+- user-home-specific values are derived by `marrow-core` from `user = "marrow"`.
+- `agent_command` uses `opencode run --agent orchestrator` instead of a machine-local absolute path, so installation depends on PATH rather than one developer workstation.
 
-- `marrow-core/docs/plans/2026-03-13-marrow-bot-decoupling-design.md`
-- `marrow-core/docs/plans/2026-03-13-marrow-bot-decoupling-implementation.md`
+## IPC and permissions
 
-Initial steps:
+- `setup.sh` may call `sudo` for protected writes, but does not need to be launched as root.
+- the runtime itself is still configured for `user = "marrow"`.
+- `marrow-core` should derive the workspace from that user, place the IPC socket under the user-owned runtime tree, and keep `task add` / `task list` usable without root.
 
-- Establish repo structure and basic metadata.
-- Move non-core prompt, role, and context content out of `marrow-core`.
-- Provide a clear installation path for new users.
+## Notes on lifecycle and sync
 
-Later steps will refine:
+- `marrow-bot` is read-only and prompt-first.
+- lifecycle write-back belongs outside this repo.
+- default `sync` is disabled in the template because `sync-once` is maintenance-only and source-checkout-centric.
+- setup may elevate selected install steps, but normal runtime and IPC usage should stay available to the configured bot user for `task add` / `task list`.
 
-- Higher-level workflows and examples in `AGENTS.md`.
-- A `setup-bot.sh` helper that automates casting, config placement, and validation.
+## Current shape
 
+`marrow-bot` is intentionally small:
+
+- `roles/`
+- `roles.toml`
+- `marrow.toml`
+- minimal `context.d/`
+- lightweight README / AGENTS

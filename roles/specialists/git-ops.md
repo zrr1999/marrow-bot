@@ -5,7 +5,7 @@ description: >-
   repository state checks for a bounded parent task.
 role: subagent
 model:
-  tier: low
+  tier: coding
 capabilities:
   - basic
 ---
