@@ -12,14 +12,6 @@ else
   BOT_HOME="${BOT_HOME:-/home/${BOT_USER}}"
 fi
 
-DEFAULT_CORE_DIR="$(cd "${BOT_DIR}/.." && pwd)/marrow-core"
-if [[ -d "${DEFAULT_CORE_DIR}" ]]; then
-  CORE_DIR="${CORE_DIR:-${DEFAULT_CORE_DIR}}"
-else
-  CORE_DIR="${CORE_DIR:-/opt/marrow-core}"
-fi
-
-echo "[marrow-bot] Using CORE_DIR=${CORE_DIR}"
 echo "[marrow-bot] Using BOT_DIR=${BOT_DIR}"
 echo "[marrow-bot] Using CONFIG_PATH=${CONFIG_PATH}"
 echo "[marrow-bot] Using SERVICE_OUT_DIR=${SERVICE_OUT_DIR}"
@@ -50,10 +42,6 @@ run_as_bot_user() {
   sudo -u "${BOT_USER}" env HOME="${BOT_HOME}" PATH="${BOT_PATH}" "$@"
 }
 
-if [[ ! -d "${CORE_DIR}" ]]; then
-  echo "[marrow-bot] ERROR: CORE_DIR does not exist: ${CORE_DIR}" >&2
-  exit 1
-fi
 
 if [[ ! -d "${BOT_DIR}" ]]; then
   echo "[marrow-bot] ERROR: BOT_DIR does not exist: ${BOT_DIR}" >&2
@@ -89,7 +77,7 @@ if ! command -v uvx >/dev/null 2>&1; then
 fi
 
 if ! command -v uv >/dev/null 2>&1; then
-  echo "[marrow-bot] ERROR: uv is required to run the local marrow-core checkout." >&2
+  echo "[marrow-bot] ERROR: uv is required (provides uvx for marrow-core)." >&2
   exit 1
 fi
 
@@ -123,7 +111,7 @@ done
 echo "[marrow-bot] Ensuring workspace structure via marrow-core setup..."
 run_as_bot_user marrow_core setup --config "${CONFIG_PATH}"
 
-echo "[marrow-bot] Validating profile via local marrow-core checkout..."
+echo "[marrow-bot] Validating profile via marrow-core..."
 run_as_bot_user marrow_core validate --config "${CONFIG_PATH}"
 run_as_bot_user marrow_core doctor --config "${CONFIG_PATH}"
 run_as_bot_user marrow_core dry-run --config "${CONFIG_PATH}" >/dev/null

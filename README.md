@@ -36,18 +36,16 @@ Example:
 
 ```bash
 uvx role-forge render --project-dir . --yes
-uv run --directory ../marrow-core marrow-core validate --config ./marrow.toml
+uvx marrow-core validate --config ./marrow.toml
 # lifecycle bridge lives in marrow-task:
 python -m marrow_task claim-next --workspace /Users/marrow
 ```
 
 ## Quick start
 
-If `marrow-core` is checked out next to this repo, the fastest path is:
-
 ```bash
 ./setup.sh
-uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
+uvx marrow-core dry-run --config ./marrow.toml
 ```
 
 `setup.sh` will:
@@ -62,9 +60,8 @@ uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
 
 1. **Prepare local prerequisites**
    You need:
-   - `uv` / `uvx`
+   - `uv` / `uvx` (marrow-core is run via `uvx marrow-core`)
    - `opencode`
-   - a local `marrow-core` checkout (default: sibling `../marrow-core`)
    - `sudo` access for operations that write protected paths under `/opt`
 
 2. **Clone `marrow-bot` to `/opt/marrow-bot`**
@@ -86,19 +83,21 @@ uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
    - rendered roles: `./.opencode/agents/`
    - rendered services: `./service-out/`
 
-5. **Run via local `marrow-core`**
+5. **Run marrow-core**
 
    Dry-run prompt assembly:
 
    ```bash
-   uv run --directory ../marrow-core marrow-core dry-run --config ./marrow.toml
+   uvx marrow-core dry-run --config ./marrow.toml
    ```
 
    Persistent runtime loop:
 
    ```bash
-   uv run --directory ../marrow-core marrow-core run --config ./marrow.toml
+   uvx marrow-core run --config ./marrow.toml
    ```
+
+   For local development with a marrow-core checkout, use `uv run --directory ../marrow-core marrow-core ...` instead.
 
 After setup, the service or CLI that runs `marrow-core` will use the `orchestrator` agent from this profile as the top-level scheduled main.
 
