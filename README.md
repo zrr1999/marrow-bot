@@ -9,8 +9,7 @@ This repository provides:
 
 - Canonical role prompts and delegation layout under `roles/`.
 - Stable policy directly in role definitions and AGENTS.
-- Minimal context providers under `context.d/`.
-- A minimal work-item context bridge for shared intake state under `context.d/work_items.py`.
+- Single context provider under `context.d/`: `work_items.py` for the shared intake seam.
 - A default `marrow.toml` configuration that wires these into `marrow-core`.
 - Casting metadata in `roles.toml` for `role-forge` / OpenCode.
 
@@ -137,5 +136,5 @@ After setup, the service or CLI that runs `marrow-core` will use the `orchestrat
 - `roles/`
 - `roles.toml`
 - `marrow.toml`
-- minimal `context.d/`
+- `context.d/work_items.py` (single context provider for the shared work-items seam)
 - lightweight README / AGENTS

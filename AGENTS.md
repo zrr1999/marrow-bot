@@ -33,14 +33,14 @@ Use scoped role references such as `directors/forge` or `specialists/tester` whe
 Keep the repo small:
 
 - `roles/` and `roles.toml` are the main profile surface
-- `context.d/` should stay minimal and only expose dynamic facts
+- `context.d/` contains only `work_items.py`; it must stay read-only and expose only the shared `work-items/` seam
 - lifecycle execution bridges belong outside this repo; use `marrow-task` or another operator/plugin repo instead
 
 ## Runtime boundary
 
 - `marrow-bot` does not own `claim-next`, `complete`, `block`, or `fail`
-- queue / thread / work-item write-back belongs to `marrow-task` or another external bridge
-- this repo may read shared `work-items/` or thread state through `context.d/`, but should not mutate them with local bridge scripts
+- work-item write-back belongs to `marrow-task` or another external bridge
+- this repo reads shared `work-items/` through `context.d/work_items.py`, but must not mutate them with local bridge scripts
 
 ## Direct-use path
 
