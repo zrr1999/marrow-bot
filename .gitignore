@@ -10,5 +10,9 @@ htmlcov/
 coverage.xml
 marrow_core/_version.py
 .opencode/
+.cursor/
+.sandbox/
 service-out/
 docs/plans/
+.agents/
+.github/agents/
